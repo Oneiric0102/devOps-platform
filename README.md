@@ -2,10 +2,10 @@
 
 ## 1. 프로젝트 개요
 
-본 저장소는 DevOps 실습 및 포트폴리오 제출을 위한 단계형 프로젝트이다.  
-애플리케이션 자체는 Todo 서비스를 기준으로 구성했으며, 이후 Docker, CI/CD, Kubernetes, 모니터링, 보안 점검까지 확장 가능한 운영 구조를 만드는 것을 목표로 한다.
+본 저장소는 DevOps 학습 및 운영 환경 구축을 위한 단계형 프로젝트다.  
+애플리케이션은 Todo 서비스를 기준으로 구성하며, Docker, CI/CD, Kubernetes, 모니터링, 보안 점검 단계까지 확장 가능한 구조를 대상으로 한다.
 
-현재 산출물은 애플리케이션 1차 구조 수립 단계에 해당한다.
+현재 범위는 애플리케이션 1차 구조 수립 단계다.
 
 ## 2. 현재 구현 범위
 
@@ -121,7 +121,7 @@ npm run dev
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
-외부 접속이 필요한 환경에서는 아래와 같이 실행할 수 있다.
+외부 접속이 필요한 경우 아래 옵션을 사용한다.
 
 ```bash
 npm run dev -- --host 0.0.0.0
@@ -239,7 +239,7 @@ process_cpu_user_seconds_total 1.530384
 
 ## 8. 검증 포인트
 
-본 단계 산출물은 아래 항목을 확인하기 위한 기준 문서로 사용할 수 있다.
+현재 단계 확인 항목:
 
 ```text
 - 프론트엔드와 백엔드의 분리 배치
@@ -261,7 +261,7 @@ process_cpu_user_seconds_total 1.530384
 Step 2. Docker 기반 실행 환경 구성
 ```
 
-예정 작업:
+다음 작업 범위:
 
 ```text
 - Backend Dockerfile 작성
@@ -271,3 +271,135 @@ Step 2. Docker 기반 실행 환경 구성
 - Nginx 구성 검토
 - 로컬 통합 실행 절차 정리
 ```
+## Docker Compose 실행
+
+Docker Compose 기준 통합 실행 절차를 정리한다.
+
+---
+
+### 1. 환경변수 파일 생성
+
+프로젝트 루트에서 `.env.example`을 복사해 `.env` 파일을 생성한다.
+
+```bash
+cp .env.example .env
+```
+
+`.env` 예시:
+
+```env
+POSTGRES_DB=devops_platform
+POSTGRES_USER=devops_user
+POSTGRES_PASSWORD=change_me
+
+BACKEND_PORT=3000
+FRONTEND_PORT=8080
+
+NODE_ENV=production
+LOG_LEVEL=info
+```
+
+`.env` 파일은 실제 실행값을 포함하므로 Git에 커밋하지 않는다.
+
+---
+
+### 2. Docker Compose 실행
+
+프로젝트 루트에서 실행한다.
+
+```bash
+docker compose up -d --build
+```
+
+---
+
+### 3. 컨테이너 상태 확인
+
+```bash
+docker compose ps
+```
+
+정상 상태에서는 frontend, backend, postgres, redis 컨테이너가 실행 중이어야 한다.
+
+---
+
+### 4. 브라우저 접속
+
+기본 접속 주소:
+
+```text
+http://localhost:8080
+```
+
+Oracle Cloud 인스턴스에서 외부 접속 시 OCI 보안 규칙에서 8080 포트를 허용해야 한다.
+
+SSH 터널링 사용 시 로컬 PC에서 아래와 같이 접속한다.
+
+```bash
+ssh -i ~/.ssh/your-key.pem -L 8080:localhost:8080 ubuntu@SERVER_PUBLIC_IP
+```
+
+브라우저 접속 주소:
+
+```text
+http://localhost:8080
+```
+
+---
+
+### 5. API 확인
+
+Nginx proxy를 통해 backend API를 확인한다.
+
+```bash
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
+curl http://localhost:8080/api/todos
+curl -s http://localhost:8080/metrics | head
+```
+
+---
+
+### 6. 로그 확인
+
+전체 로그:
+
+```bash
+docker compose logs
+```
+
+Backend 로그:
+
+```bash
+docker compose logs -f backend
+```
+
+Frontend 로그:
+
+```bash
+docker compose logs -f frontend
+```
+
+---
+
+### 7. 종료
+
+컨테이너 종료:
+
+```bash
+docker compose down
+```
+
+이 명령은 컨테이너와 네트워크를 제거하며 volume은 유지한다.
+
+---
+
+### 8. 데이터까지 초기화
+
+PostgreSQL과 Redis volume까지 삭제할 경우 아래 명령을 사용한다.
+
+```bash
+docker compose down -v
+```
+
+주의: 이 명령은 DB 데이터까지 삭제한다.

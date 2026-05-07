@@ -2,8 +2,8 @@
 
 ## 1. 문서 개요
 
-이 문서는 DevOps Platform 프로젝트의 1차 애플리케이션 구조를 정리한 중간 산출물이다.  
-제출 목적에 맞춰 현재 구현 범위, 구성 요소 역할, 데이터 흐름, 운영 관점의 확장 포인트를 기준으로 정리했다.
+이 문서는 DevOps Platform 프로젝트의 애플리케이션 구조를 정리한다.  
+범위는 시스템 구성, 계층 구조, API, 데이터 저장소, 운영 관점 요소다.
 
 ## 2. 시스템 구성
 
@@ -34,6 +34,7 @@ devOps-platform
 │  ├─ frontend
 │  └─ backend
 ├─ docs
+├─ docker-compose.yml
 └─ README.md
 ```
 
@@ -41,7 +42,7 @@ devOps-platform
 
 ### 5-1. Frontend
 
-프론트엔드는 Todo 관리 화면과 기본 상태 표시를 담당한다.
+프론트엔드는 Todo 관리 화면과 백엔드 상태 표시를 담당한다.
 
 주요 기능:
 
@@ -56,7 +57,7 @@ devOps-platform
 
 ### 5-2. Backend
 
-백엔드는 REST API 제공, 데이터 저장, 캐시 처리, 운영용 상태 점검 기능을 담당한다.
+백엔드는 REST API 제공, 데이터 저장, 캐시 처리, 상태 점검 기능을 담당한다.
 
 주요 기능:
 
@@ -66,66 +67,26 @@ devOps-platform
 - Redis 기반 목록 캐시 처리
 - /health, /ready 엔드포인트 제공
 - /metrics 엔드포인트 제공
-- 장애 테스트용 API 제공
+- 예외 및 지연 응답 검증용 API 제공
 ```
 
-## 6. API 구성
+## 6. 요청 흐름
 
-### 6-1. Todo API
-
-| Method | Endpoint | 설명 |
-|---|---|---|
-| GET | `/api/todos` | Todo 목록 조회 |
-| POST | `/api/todos` | Todo 생성 |
-| GET | `/api/todos/:id` | Todo 단건 조회 |
-| PATCH | `/api/todos/:id` | Todo 수정 |
-| DELETE | `/api/todos/:id` | Todo 삭제 |
-
-### 6-2. 운영용 API
-
-| Method | Endpoint | 설명 |
-|---|---|---|
-| GET | `/health` | 프로세스 생존 상태 확인 |
-| GET | `/ready` | PostgreSQL, Redis 연결 상태 확인 |
-| GET | `/metrics` | Prometheus 수집용 메트릭 제공 |
-
-### 6-3. 테스트용 API
-
-| Method | Endpoint | 설명 |
-|---|---|---|
-| GET | `/api/error` | 예외 처리 경로 검증 |
-| GET | `/api/slow` | 지연 응답 상황 검증 |
-
-## 7. 데이터 저장소 설계
-
-### 7-1. PostgreSQL
-
-`todos` 테이블은 Todo 데이터의 영속 저장소 역할을 수행한다.
-
-```sql
-CREATE TABLE IF NOT EXISTS todos (
-  id SERIAL PRIMARY KEY,
-  title VARCHAR(100) NOT NULL,
-  description TEXT,
-  completed BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-```
-
-설계 포인트:
+### 6-1. Todo 요청 흐름
 
 ```text
-- 서비스 계층과 저장소 계층 분리를 전제로 한 기본 스키마
-- 생성일시와 수정일시 컬럼 포함
-- 이후 컨테이너 및 오케스트레이션 환경으로 확장 가능한 구조
+Browser
+  ↓
+Frontend
+  ↓
+Backend API
+  ↓
+Service Layer
+  ↓
+PostgreSQL / Redis
 ```
 
-### 7-2. Redis
-
-Redis는 Todo 목록 조회 결과에 대한 캐시 저장소로 사용한다.
-
-처리 흐름:
+### 6-2. 목록 조회 시 캐시 처리 흐름
 
 ```text
 GET /api/todos 요청
@@ -147,46 +108,73 @@ PATCH /api/todos/:id
 DELETE /api/todos/:id
 ```
 
-## 8. 운영 관점 설계
+## 7. API 구성
 
-### 8-1. Health Check
+### 7-1. Todo API
 
-`/health`는 애플리케이션 프로세스의 생존 여부를 확인하기 위한 엔드포인트다.  
-향후 컨테이너 환경에서는 liveness probe 용도로 확장할 수 있다.
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET | `/api/todos` | Todo 목록 조회 |
+| POST | `/api/todos` | Todo 생성 |
+| GET | `/api/todos/:id` | Todo 단건 조회 |
+| PATCH | `/api/todos/:id` | Todo 수정 |
+| DELETE | `/api/todos/:id` | Todo 삭제 |
 
-### 8-2. Readiness Check
+### 7-2. 운영용 API
 
-`/ready`는 실제 요청 처리 가능 여부를 판단하기 위한 엔드포인트다.
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET | `/health` | 프로세스 생존 상태 확인 |
+| GET | `/ready` | PostgreSQL, Redis 연결 상태 확인 |
+| GET | `/metrics` | Prometheus 수집용 메트릭 제공 |
 
-확인 대상:
+### 7-3. 테스트용 API
 
-```text
-- PostgreSQL 연결 상태
-- Redis 연결 상태
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET | `/api/error` | 예외 처리 경로 검증 |
+| GET | `/api/slow` | 지연 응답 경로 검증 |
+
+## 8. 데이터 저장소 설계
+
+### 8-1. PostgreSQL
+
+`todos` 테이블은 Todo 데이터의 영속 저장소 역할을 수행한다.
+
+```sql
+CREATE TABLE IF NOT EXISTS todos (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(100) NOT NULL,
+  description TEXT,
+  completed BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
 ```
 
-향후 배포 환경에서는 readiness probe 및 배포 검증 절차에 활용할 수 있다.
-
-### 8-3. Metrics
-
-`/metrics`는 Prometheus 연동을 위한 기본 관측 지표를 제공한다.
-
-수집 항목:
+설계 포인트:
 
 ```text
-- Node.js 기본 프로세스 메트릭
-- HTTP 요청 처리 시간
-- HTTP 상태 코드
-- 요청 메서드
-- 요청 라우트
+- 제목, 설명, 완료 여부를 중심으로 한 기본 Todo 스키마
+- 생성일시와 수정일시 컬럼 포함
+- 서비스 계층과 저장소 계층 분리를 전제로 한 구조
 ```
 
-활용 목적:
+### 8-2. Redis
+
+Redis는 Todo 목록 조회 결과에 대한 캐시 저장소로 사용한다.
+
+캐시 키:
 
 ```text
-- Prometheus 수집 대상 구성
-- Grafana 시각화 연계 기반 확보
-- 성능 및 장애 분석을 위한 기본 지표 확보
+todos:all
+```
+
+적용 기준:
+
+```text
+- 목록 조회 시 캐시 우선 조회
+- 데이터 변경 시 목록 캐시 삭제
 ```
 
 ## 9. 백엔드 계층 구조
@@ -216,30 +204,41 @@ database / cache
 | db | PostgreSQL, Redis 연결 관리 |
 | middlewares | 에러 처리와 메트릭 수집 |
 
-## 10. 본 단계 산출물 기준
+## 10. 운영 관점 구성
 
-현재 단계에서 확인 가능한 범위는 다음과 같다.
+### 10-1. Health Check
+
+`/health`는 애플리케이션 프로세스의 생존 여부를 확인하기 위한 엔드포인트다.
+
+### 10-2. Readiness Check
+
+`/ready`는 실제 요청 처리 가능 여부를 판단하기 위한 엔드포인트다.
+
+확인 대상:
 
 ```text
-- 프론트엔드와 백엔드의 분리 실행
-- PostgreSQL 및 Redis 연동
-- Todo CRUD 동작
-- /health, /ready, /metrics 엔드포인트 제공
-- 테스트 코드 기반 기본 검증
-- 운영 확장을 고려한 계층 구조 확보
+- PostgreSQL 연결 상태
+- Redis 연결 상태
 ```
 
-## 11. 확장 계획
+### 10-3. Metrics
 
-후속 단계에서는 아래 항목을 순차적으로 반영할 예정이다.
+`/metrics`는 Prometheus 연동을 위한 기본 관측 지표를 제공한다.
+
+수집 항목:
 
 ```text
-Step 2. Docker 구성
-Step 3. 저장소 구조 정리
-Step 4. CI 구성
-Step 5. 이미지 저장소 연동
-Step 6. Kubernetes 배포
-Step 7. CD 구성
-Step 10. 모니터링 구성
-Step 11. 보안 스캔 구성
+- Node.js 기본 프로세스 메트릭
+- HTTP 요청 처리 시간
+- HTTP 상태 코드
+- 요청 메서드
+- 요청 라우트
+```
+
+활용 목적:
+
+```text
+- Prometheus 수집 대상 제공
+- Grafana 시각화 연계 기반 제공
+- 성능 및 장애 분석용 기초 지표 제공
 ```

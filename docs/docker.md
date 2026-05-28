@@ -297,3 +297,137 @@ docker compose up -d --build
 ```
 
 `docker compose down -v`는 PostgreSQL 및 Redis 데이터 볼륨을 함께 삭제한다.
+
+## 17. GitHub Actions 기반 이미지 배포
+
+GitHub Actions 기준 Docker 이미지 배포 구성을 정리한다.
+
+---
+
+### 1. 워크플로 구성
+
+워크플로 파일:
+
+```text
+.github/workflows/ci.yml
+.github/workflows/docker-publish.yml
+```
+
+역할:
+
+| 워크플로 | 역할 |
+|---|---|
+| `ci.yml` | 코드, 테스트, Docker 빌드, Compose 구성 검증 |
+| `docker-publish.yml` | master 브랜치 기준 Docker 이미지 배포 |
+
+---
+
+### 2. CI 실행 조건
+
+실행 조건:
+
+```text
+- develop 브랜치 push
+- master 브랜치 push
+- master 브랜치 대상 pull request
+```
+
+검증 항목:
+
+```text
+- Backend 빌드
+- Backend 테스트
+- Frontend 빌드
+- Backend Docker 이미지 빌드
+- Frontend Docker 이미지 빌드
+- Docker Compose 구성
+```
+
+CI 단계에서는 Docker 이미지를 레지스트리에 push하지 않는다.
+
+---
+
+### 3. Docker 이미지 배포 조건
+
+실행 조건:
+
+```text
+- master 브랜치 push
+```
+
+develop 브랜치에서는 CI 검증만 수행한다.
+
+---
+
+### 4. GHCR 이미지 이름
+
+Docker 이미지는 GitHub Container Registry에 배포한다.
+
+이미지 이름:
+
+```text
+ghcr.io/OWNER/REPOSITORY-backend
+ghcr.io/OWNER/REPOSITORY-frontend
+```
+
+예시:
+
+```text
+ghcr.io/your-username/devops-platform-backend
+ghcr.io/your-username/devops-platform-frontend
+```
+
+---
+
+### 5. 이미지 태그
+
+사용 태그:
+
+| 태그 | 의미 |
+|---|---|
+| `master` | master 브랜치 기준 최신 이미지 |
+| `sha-xxxxxxx` | 특정 commit 기준 이미지 |
+
+예시:
+
+```text
+ghcr.io/your-username/devops-platform-backend:master
+ghcr.io/your-username/devops-platform-backend:sha-a1b2c3d
+
+ghcr.io/your-username/devops-platform-frontend:master
+ghcr.io/your-username/devops-platform-frontend:sha-a1b2c3d
+```
+
+---
+
+### 6. 워크플로 권한
+
+GHCR 이미지 push 권한:
+
+```yaml
+permissions:
+  contents: read
+  packages: write
+```
+
+---
+
+### 7. 브랜치 운영 흐름
+
+운영 흐름:
+
+```text
+develop 브랜치 작업
+  ↓
+CI 실행
+  ↓
+develop → master Pull Request
+  ↓
+CI 실행
+  ↓
+master merge
+  ↓
+Docker 이미지 배포
+  ↓
+GHCR 이미지 생성
+```

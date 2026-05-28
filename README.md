@@ -403,3 +403,128 @@ docker compose down -v
 ```
 
 주의: 이 명령은 DB 데이터까지 삭제한다.
+
+
+## CI/CD 및 Docker 이미지 배포
+
+GitHub Actions 기준 CI/CD 구성을 정리한다.
+
+---
+
+### 1. CI 워크플로
+
+워크플로 파일:
+
+```text
+.github/workflows/ci.yml
+```
+
+실행 조건:
+
+```text
+- develop 브랜치 push
+- master 브랜치 push
+- master 브랜치 대상 pull request
+```
+
+검증 항목:
+
+```text
+- Backend 의존성 설치
+- Backend TypeScript 빌드
+- Backend 테스트 실행
+- Frontend 의존성 설치
+- Frontend 빌드
+- Backend Docker 이미지 빌드 검증
+- Frontend Docker 이미지 빌드 검증
+- Docker Compose 구성 검증
+```
+
+CI 단계에서는 Docker 이미지를 배포하지 않는다.
+
+---
+
+### 2. Docker Publish 워크플로
+
+워크플로 파일:
+
+```text
+.github/workflows/docker-publish.yml
+```
+
+실행 조건:
+
+```text
+- master 브랜치 push
+```
+
+develop 브랜치에서는 CI 검증만 수행한다.
+
+---
+
+### 3. GitHub Container Registry
+
+master 브랜치에 push되면 backend와 frontend Docker 이미지를 GitHub Container Registry에 배포한다.
+
+이미지 이름:
+
+```text
+ghcr.io/OWNER/REPOSITORY-backend
+ghcr.io/OWNER/REPOSITORY-frontend
+```
+
+예시:
+
+```text
+ghcr.io/your-username/devops-platform-backend
+ghcr.io/your-username/devops-platform-frontend
+```
+
+---
+
+### 4. 이미지 태그
+
+사용 태그:
+
+| 태그 | 의미 |
+|---|---|
+| `master` | master 브랜치 기준 최신 이미지 |
+| `sha-xxxxxxx` | 특정 commit 기준 이미지 |
+
+예시:
+
+```text
+ghcr.io/your-username/devops-platform-backend:master
+ghcr.io/your-username/devops-platform-backend:sha-a1b2c3d
+
+ghcr.io/your-username/devops-platform-frontend:master
+ghcr.io/your-username/devops-platform-frontend:sha-a1b2c3d
+```
+
+`master` 태그는 master 브랜치 기준 최신 이미지를 가리킨다.  
+`sha-xxxxxxx` 태그는 특정 commit 기준 이미지를 가리킨다.
+
+---
+
+### 5. 브랜치 운영 기준
+
+| 브랜치 | 역할 |
+|---|---|
+| `develop` | 개발 및 CI 검증용 브랜치 |
+| `master` | 안정 브랜치 및 이미지 배포 기준 브랜치 |
+
+운영 흐름:
+
+```text
+develop 작업
+  ↓
+CI 검증
+  ↓
+develop → master Pull Request
+  ↓
+CI 검증
+  ↓
+master merge
+  ↓
+Docker 이미지 배포
+```

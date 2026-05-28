@@ -1,0 +1,74 @@
+name: Docker Publish
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  publish:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          REPO_NAME=$(basename "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          BRANCH_NAME=$(echo "${{ github.ref_name }}" | tr '/' '-')
+
+          echo "owner=${OWNER_LOWER}" >> "$GITHUB_OUTPUT"
+          echo "repo=${REPO_NAME}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
+
+          echo "backend_image=ghcr.io/${OWNER_LOWER}/${REPO_NAME}-backend" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=ghcr.io/${OWNER_LOWER}/${REPO_NAME}-frontend" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build backend image
+        run: |
+          docker build \
+            -t "${{ steps.meta.outputs.backend_image }}:${{ steps.meta.outputs.branch }}" \
+            -t "${{ steps.meta.outputs.backend_image }}:sha-${{ steps.meta.outputs.short_sha }}" \
+            ./app/backend
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            -t "${{ steps.meta.outputs.frontend_image }}:${{ steps.meta.outputs.branch }}" \
+            -t "${{ steps.meta.outputs.frontend_image }}:sha-${{ steps.meta.outputs.short_sha }}" \
+            ./app/frontend
+
+      - name: Push backend image
+        run: |
+          docker push "${{ steps.meta.outputs.backend_image }}:${{ steps.meta.outputs.branch }}"
+          docker push "${{ steps.meta.outputs.backend_image }}:sha-${{ steps.meta.outputs.short_sha }}"
+
+      - name: Push frontend image
+        run: |
+          docker push "${{ steps.meta.outputs.frontend_image }}:${{ steps.meta.outputs.branch }}"
+          docker push "${{ steps.meta.outputs.frontend_image }}:sha-${{ steps.meta.outputs.short_sha }}"
+
+      - name: Print published images
+        run: |
+          echo "Backend image:"
+          echo "${{ steps.meta.outputs.backend_image }}:${{ steps.meta.outputs.branch }}"
+          echo "${{ steps.meta.outputs.backend_image }}:sha-${{ steps.meta.outputs.short_sha }}"
+
+          echo "Frontend image:"
+          echo "${{ steps.meta.outputs.frontend_image }}:${{ steps.meta.outputs.branch }}"
+          echo "${{ steps.meta.outputs.frontend_image }}:sha-${{ steps.meta.outputs.short_sha }}"

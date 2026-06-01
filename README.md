@@ -3,14 +3,17 @@
 ## 1. 프로젝트 개요
 
 본 저장소는 DevOps 학습 및 운영 환경 구축을 위한 단계형 프로젝트다.  
-애플리케이션은 Todo 서비스를 기준으로 구성하며, Docker, CI/CD, Kubernetes, 모니터링, 보안 점검 단계까지 확장 가능한 구조를 대상으로 한다.
+Todo 애플리케이션을 기준으로 애플리케이션 구조, Docker 실행 환경, CI/CD, Kubernetes 배포 구성을 순차적으로 확장한다.
 
-현재 범위는 애플리케이션 1차 구조 수립 단계다.
+현재 범위는 Docker Compose 기반 통합 실행과 kind 기반 Kubernetes 배포 구성까지 포함한다.
 
-## 2. 현재 구현 범위
+## 2. 구현 범위
 
 ```text
 Step 1. 애플리케이션 구조 구성
+Step 2. Docker 기반 실행 환경 구성
+Step 3. CI/CD 및 Docker 이미지 배포 구성
+Step 4. Kubernetes 배포 구성
 ```
 
 포함 항목:
@@ -18,65 +21,98 @@ Step 1. 애플리케이션 구조 구성
 ```text
 - React + Vite + TypeScript 기반 프론트엔드
 - Node.js + Express + TypeScript 기반 백엔드
-- PostgreSQL 연동
-- Redis 캐시 연동
+- PostgreSQL 기반 Todo 데이터 저장
+- Redis 기반 Todo 목록 캐시
 - Todo CRUD API
 - /health, /ready, /metrics 운영용 엔드포인트
-- 기본 테스트 및 로컬 실행 환경
+- Docker Compose 기반 통합 실행 환경
+- GitHub Actions 기반 CI 및 Docker 이미지 배포
+- kind 기반 Kubernetes 배포 구성
 ```
 
 ## 3. 기술 스택
 
 | 영역 | 기술 |
 |---|---|
-| Frontend | React, Vite, TypeScript |
+| Frontend | React, Vite, TypeScript, Nginx |
 | Backend | Node.js, Express, TypeScript |
 | Database | PostgreSQL |
 | Cache | Redis |
 | Metrics | prom-client |
 | Test | Jest, Supertest |
+| Container | Docker, Docker Compose |
+| CI/CD | GitHub Actions, GitHub Container Registry |
+| Kubernetes | kind, ingress-nginx |
 | Runtime | Oracle Cloud Ubuntu Instance |
 
 ## 4. 저장소 구조
 
 ```text
 devOps-platform
+├─ .github
+│  └─ workflows
+│     ├─ ci.yml
+│     └─ docker-publish.yml
 ├─ app
 │  ├─ frontend
 │  │  ├─ src
 │  │  ├─ public
+│  │  ├─ Dockerfile
+│  │  ├─ nginx.conf
 │  │  ├─ package.json
 │  │  └─ .env.example
 │  └─ backend
 │     ├─ src
-│     │  ├─ config
-│     │  ├─ controllers
-│     │  ├─ db
-│     │  ├─ middlewares
-│     │  ├─ repositories
-│     │  ├─ routes
-│     │  ├─ services
-│     │  ├─ types
-│     │  ├─ app.ts
-│     │  └─ server.ts
 │     ├─ migrations
 │     ├─ tests
+│     ├─ Dockerfile
 │     ├─ package.json
 │     └─ .env.example
 ├─ docs
-│  └─ app-architecture.md
+│  ├─ app-architecture.md
+│  ├─ docker.md
+│  └─ kubernetes.md
+├─ k8s
+│  ├─ namespace.yaml
+│  ├─ configmap.yaml
+│  ├─ secret.yaml
+│  ├─ postgres.yaml
+│  ├─ redis.yaml
+│  ├─ backend.yaml
+│  ├─ frontend.yaml
+│  └─ ingress.yaml
+├─ kind
+│  └─ kind-config.yaml
+├─ docker-compose.yml
+├─ .env.example
 └─ README.md
 ```
 
-## 5. 실행 방법
+## 5. 애플리케이션 구성
 
-### 5-1. Backend
+```text
+Client
+  ↓
+Frontend
+  ↓
+Backend API
+  ↓
+PostgreSQL / Redis
+```
+
+Frontend는 Todo 관리 화면과 운영 상태 표시를 담당한다.  
+Backend는 Todo API, 캐시 처리, 상태 점검, 메트릭 노출을 담당한다.  
+PostgreSQL은 Todo 데이터를 저장하며, Redis는 Todo 목록 조회 캐시로 사용한다.
+
+## 6. 로컬 개발 실행
+
+### 6-1. Backend
 
 ```bash
 cd app/backend
 npm install
 cp .env.example .env
-psql -h localhost -U ops_admin -d devops_platform -f migrations/001_create_todos.sql
+psql -h localhost -U devops_user -d devops_platform -f migrations/001_create_todos.sql
 npm run dev
 ```
 
@@ -89,8 +125,8 @@ PORT=3000
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 DATABASE_NAME=devops_platform
-DATABASE_USER=ops_admin
-DATABASE_PASSWORD=dev1257@@
+DATABASE_USER=devops_user
+DATABASE_PASSWORD=change_me
 
 REDIS_HOST=localhost
 REDIS_PORT=6379
@@ -99,14 +135,16 @@ CORS_ORIGIN=http://localhost:5173
 LOG_LEVEL=info
 ```
 
-추가 확인:
+Backend 로컬 실행은 PostgreSQL과 Redis 연결을 전제로 한다.
+
+검증 명령:
 
 ```bash
 npm run build
 npm test
 ```
 
-### 5-2. Frontend
+### 6-2. Frontend
 
 ```bash
 cd app/frontend
@@ -121,15 +159,42 @@ npm run dev
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
-외부 접속이 필요한 경우 아래 옵션을 사용한다.
+외부 접속 옵션:
 
 ```bash
 npm run dev -- --host 0.0.0.0
 ```
 
-## 6. 주요 API
+## 7. Docker Compose 실행
 
-### 6-1. Todo API
+프로젝트 루트의 `.env.example`을 기준으로 `.env` 파일을 구성한다.
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+기본 접속 주소:
+
+```text
+http://localhost:8080
+```
+
+상태 확인:
+
+```bash
+docker compose ps
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
+curl http://localhost:8080/api/todos
+curl -s http://localhost:8080/metrics | head
+```
+
+구성 상세는 [Docker 구성 문서](docs/docker.md)에 정리한다.
+
+## 8. 주요 API
+
+### 8-1. Todo API
 
 | Method | Endpoint | 설명 |
 |---|---|---|
@@ -139,7 +204,7 @@ npm run dev -- --host 0.0.0.0
 | PATCH | `/api/todos/:id` | Todo 수정 |
 | DELETE | `/api/todos/:id` | Todo 삭제 |
 
-### 6-2. 운영용 API
+### 8-2. 운영용 API
 
 | Method | Endpoint | 설명 |
 |---|---|---|
@@ -147,99 +212,67 @@ npm run dev -- --host 0.0.0.0
 | GET | `/ready` | PostgreSQL, Redis 연결 상태 확인 |
 | GET | `/metrics` | Prometheus 수집용 메트릭 노출 |
 
-### 6-3. 장애 테스트용 API
+### 8-3. 장애 검증용 API
 
 | Method | Endpoint | 설명 |
 |---|---|---|
-| GET | `/api/error` | 예외 처리 및 장애 대응 테스트 |
-| GET | `/api/slow` | 지연 응답 시나리오 테스트 |
+| GET | `/api/error` | 예외 처리 경로 검증 |
+| GET | `/api/slow` | 지연 응답 경로 검증 |
 
-## 7. 동작 확인 예시
+## 9. CI/CD 및 Docker 이미지 배포
 
-### 7-1. Health Check
+GitHub Actions는 CI 검증과 Docker 이미지 배포를 분리한다.
 
-```bash
-curl http://localhost:3000/health
-```
+| 워크플로 | 실행 조건 | 역할 |
+|---|---|---|
+| `.github/workflows/ci.yml` | `develop`, `master` push / `master` pull request | Backend, Frontend, Docker, Compose 검증 |
+| `.github/workflows/docker-publish.yml` | `master` push | GHCR multi-arch Docker 이미지 배포 |
 
-예상 응답:
-
-```json
-{
-  "status": "ok",
-  "service": "backend",
-  "timestamp": "2026-04-28T00:00:00.000Z"
-}
-```
-
-### 7-2. Readiness Check
-
-```bash
-curl http://localhost:3000/ready
-```
-
-예상 응답:
-
-```json
-{
-  "status": "ready",
-  "checks": {
-    "postgres": "ok",
-    "redis": "ok"
-  },
-  "timestamp": "2026-04-28T00:00:00.000Z"
-}
-```
-
-### 7-3. Todo 생성
-
-```bash
-curl -X POST http://localhost:3000/api/todos \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Set up TypeScript backend","description":"Express backend with PostgreSQL and Redis"}'
-```
-
-### 7-4. Todo 목록 조회
-
-```bash
-curl http://localhost:3000/api/todos
-```
-
-응답 예시:
-
-```json
-{
-  "source": "database",
-  "data": [
-    {
-      "id": 1,
-      "title": "Set up TypeScript backend",
-      "description": "Express backend with PostgreSQL and Redis",
-      "completed": false,
-      "createdAt": "2026-04-28T06:26:10.067Z",
-      "updatedAt": "2026-04-28T06:26:10.067Z"
-    }
-  ]
-}
-```
-
-### 7-5. Metrics 확인
-
-```bash
-curl -s http://localhost:3000/metrics | head
-```
-
-예상 출력:
+배포 이미지:
 
 ```text
-# HELP process_cpu_user_seconds_total Total user CPU time spent in seconds.
-# TYPE process_cpu_user_seconds_total counter
-process_cpu_user_seconds_total 1.530384
+ghcr.io/oneiric0102/devops-platform-backend:master
+ghcr.io/oneiric0102/devops-platform-backend:sha-xxxxxxx
+
+ghcr.io/oneiric0102/devops-platform-frontend:master
+ghcr.io/oneiric0102/devops-platform-frontend:sha-xxxxxxx
 ```
 
-## 8. 검증 포인트
+브랜치 운영 기준:
 
-현재 단계 확인 항목:
+| 브랜치 | 역할 |
+|---|---|
+| `develop` | 개발 및 CI 검증용 브랜치 |
+| `master` | 안정 브랜치 및 이미지 배포 기준 브랜치 |
+
+## 10. Kubernetes 배포 구성
+
+Kubernetes 단계는 Docker Compose 기반 통합 실행 구성을 클러스터 배포 형태로 확장한 범위다.  
+로컬 검증 환경은 kind를 기준으로 하며, 애플리케이션 실행에 필요한 frontend, backend, PostgreSQL, Redis 리소스를 Kubernetes manifest로 분리한다.
+
+관련 파일:
+
+```text
+kind/kind-config.yaml
+k8s/
+```
+
+리소스 구성:
+
+| 파일 | 역할 |
+|---|---|
+| `namespace.yaml` | 프로젝트 리소스 격리를 위한 namespace 정의 |
+| `configmap.yaml` | 애플리케이션 런타임 설정값 정의 |
+| `secret.yaml` | 데이터베이스 접속 정보 등 민감값 정의 |
+| `postgres.yaml` | PostgreSQL StatefulSet, Service, PVC 구성 |
+| `redis.yaml` | Redis Deployment 및 Service 구성 |
+| `backend.yaml` | Backend Deployment 및 Service 구성 |
+| `frontend.yaml` | Frontend Deployment 및 Service 구성 |
+| `ingress.yaml` | 외부 요청을 frontend와 backend로 라우팅하는 Ingress 구성 |
+
+Kubernetes 구성 상세는 [Kubernetes 배포 문서](docs/kubernetes.md)에 정리한다.
+
+## 11. 검증 포인트
 
 ```text
 - 프론트엔드와 백엔드의 분리 배치
@@ -248,283 +281,29 @@ process_cpu_user_seconds_total 1.530384
 - Redis를 활용한 목록 조회 캐시 처리
 - /health 와 /ready 분리 설계
 - /metrics 기반 모니터링 확장 준비
-- Docker 및 Kubernetes 단계로의 확장 가능 구조 확보
+- Docker Compose 기반 통합 실행
+- GitHub Actions 기반 CI/CD 구성
+- Kubernetes 기반 배포 및 운영 검증 구조
 ```
 
-## 9. 관련 문서
+## 12. 관련 문서
 
 - [애플리케이션 구조 문서](docs/app-architecture.md)
+- [Docker 구성 문서](docs/docker.md)
+- [Kubernetes 배포 문서](docs/kubernetes.md)
 
-## 10. 다음 단계
+## 13. 다음 단계
 
 ```text
-Step 2. Docker 기반 실행 환경 구성
+Step 5. 모니터링 및 관측성 구성
 ```
 
 다음 작업 범위:
 
 ```text
-- Backend Dockerfile 작성
-- Frontend Dockerfile 작성
-- docker-compose.yml 구성
-- PostgreSQL 및 Redis 컨테이너 연동
-- Nginx 구성 검토
-- 로컬 통합 실행 절차 정리
-```
-## Docker Compose 실행
-
-Docker Compose 기준 통합 실행 절차를 정리한다.
-
----
-
-### 1. 환경변수 파일 생성
-
-프로젝트 루트에서 `.env.example`을 복사해 `.env` 파일을 생성한다.
-
-```bash
-cp .env.example .env
-```
-
-`.env` 예시:
-
-```env
-POSTGRES_DB=devops_platform
-POSTGRES_USER=devops_user
-POSTGRES_PASSWORD=change_me
-
-BACKEND_PORT=3000
-FRONTEND_PORT=8080
-
-NODE_ENV=production
-LOG_LEVEL=info
-```
-
-`.env` 파일은 실제 실행값을 포함하므로 Git에 커밋하지 않는다.
-
----
-
-### 2. Docker Compose 실행
-
-프로젝트 루트에서 실행한다.
-
-```bash
-docker compose up -d --build
-```
-
----
-
-### 3. 컨테이너 상태 확인
-
-```bash
-docker compose ps
-```
-
-정상 상태에서는 frontend, backend, postgres, redis 컨테이너가 실행 중이어야 한다.
-
----
-
-### 4. 브라우저 접속
-
-기본 접속 주소:
-
-```text
-http://localhost:8080
-```
-
-Oracle Cloud 인스턴스에서 외부 접속 시 OCI 보안 규칙에서 8080 포트를 허용해야 한다.
-
-SSH 터널링 사용 시 로컬 PC에서 아래와 같이 접속한다.
-
-```bash
-ssh -i ~/.ssh/your-key.pem -L 8080:localhost:8080 ubuntu@SERVER_PUBLIC_IP
-```
-
-브라우저 접속 주소:
-
-```text
-http://localhost:8080
-```
-
----
-
-### 5. API 확인
-
-Nginx proxy를 통해 backend API를 확인한다.
-
-```bash
-curl http://localhost:8080/health
-curl http://localhost:8080/ready
-curl http://localhost:8080/api/todos
-curl -s http://localhost:8080/metrics | head
-```
-
----
-
-### 6. 로그 확인
-
-전체 로그:
-
-```bash
-docker compose logs
-```
-
-Backend 로그:
-
-```bash
-docker compose logs -f backend
-```
-
-Frontend 로그:
-
-```bash
-docker compose logs -f frontend
-```
-
----
-
-### 7. 종료
-
-컨테이너 종료:
-
-```bash
-docker compose down
-```
-
-이 명령은 컨테이너와 네트워크를 제거하며 volume은 유지한다.
-
----
-
-### 8. 데이터까지 초기화
-
-PostgreSQL과 Redis volume까지 삭제할 경우 아래 명령을 사용한다.
-
-```bash
-docker compose down -v
-```
-
-주의: 이 명령은 DB 데이터까지 삭제한다.
-
-
-## CI/CD 및 Docker 이미지 배포
-
-GitHub Actions 기준 CI/CD 구성을 정리한다.
-
----
-
-### 1. CI 워크플로
-
-워크플로 파일:
-
-```text
-.github/workflows/ci.yml
-```
-
-실행 조건:
-
-```text
-- develop 브랜치 push
-- master 브랜치 push
-- master 브랜치 대상 pull request
-```
-
-검증 항목:
-
-```text
-- Backend 의존성 설치
-- Backend TypeScript 빌드
-- Backend 테스트 실행
-- Frontend 의존성 설치
-- Frontend 빌드
-- Backend Docker 이미지 빌드 검증
-- Frontend Docker 이미지 빌드 검증
-- Docker Compose 구성 검증
-```
-
-CI 단계에서는 Docker 이미지를 배포하지 않는다.
-
----
-
-### 2. Docker Publish 워크플로
-
-워크플로 파일:
-
-```text
-.github/workflows/docker-publish.yml
-```
-
-실행 조건:
-
-```text
-- master 브랜치 push
-```
-
-develop 브랜치에서는 CI 검증만 수행한다.
-
----
-
-### 3. GitHub Container Registry
-
-master 브랜치에 push되면 backend와 frontend Docker 이미지를 GitHub Container Registry에 배포한다.
-
-이미지 이름:
-
-```text
-ghcr.io/OWNER/REPOSITORY-backend
-ghcr.io/OWNER/REPOSITORY-frontend
-```
-
-예시:
-
-```text
-ghcr.io/your-username/devops-platform-backend
-ghcr.io/your-username/devops-platform-frontend
-```
-
----
-
-### 4. 이미지 태그
-
-사용 태그:
-
-| 태그 | 의미 |
-|---|---|
-| `master` | master 브랜치 기준 최신 이미지 |
-| `sha-xxxxxxx` | 특정 commit 기준 이미지 |
-
-예시:
-
-```text
-ghcr.io/your-username/devops-platform-backend:master
-ghcr.io/your-username/devops-platform-backend:sha-a1b2c3d
-
-ghcr.io/your-username/devops-platform-frontend:master
-ghcr.io/your-username/devops-platform-frontend:sha-a1b2c3d
-```
-
-`master` 태그는 master 브랜치 기준 최신 이미지를 가리킨다.  
-`sha-xxxxxxx` 태그는 특정 commit 기준 이미지를 가리킨다.
-
----
-
-### 5. 브랜치 운영 기준
-
-| 브랜치 | 역할 |
-|---|---|
-| `develop` | 개발 및 CI 검증용 브랜치 |
-| `master` | 안정 브랜치 및 이미지 배포 기준 브랜치 |
-
-운영 흐름:
-
-```text
-develop 작업
-  ↓
-CI 검증
-  ↓
-develop → master Pull Request
-  ↓
-CI 검증
-  ↓
-master merge
-  ↓
-Docker 이미지 배포
+- Prometheus 수집 구성
+- Grafana 대시보드 구성
+- 애플리케이션 메트릭 시각화
+- Kubernetes 리소스 상태 모니터링
+- 장애 탐지 및 알림 기준 정리
 ```

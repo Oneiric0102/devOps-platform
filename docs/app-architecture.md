@@ -1,8 +1,8 @@
 # 애플리케이션 구조 문서
 
-## 1. 문서 개요
+## 1. 구조 범위
 
-이 문서는 DevOps Platform 프로젝트의 애플리케이션 구조를 정리한다.  
+본 문서는 DevOps Platform Portfolio 프로젝트의 애플리케이션 구조를 정리한다.  
 범위는 시스템 구성, 계층 구조, API, 데이터 저장소, 운영 관점 요소다.
 
 ## 2. 시스템 구성
@@ -25,6 +25,8 @@ Node.js + Express + TypeScript Backend
 | Cache | Redis |
 | Metrics | prom-client |
 | Test | Jest, Supertest |
+| Container | Docker, Docker Compose |
+| Kubernetes | kind, ingress-nginx |
 
 ## 4. 디렉터리 구성
 
@@ -34,6 +36,8 @@ devOps-platform
 │  ├─ frontend
 │  └─ backend
 ├─ docs
+├─ k8s
+├─ kind
 ├─ docker-compose.yml
 └─ README.md
 ```
@@ -128,7 +132,7 @@ DELETE /api/todos/:id
 | GET | `/ready` | PostgreSQL, Redis 연결 상태 확인 |
 | GET | `/metrics` | Prometheus 수집용 메트릭 제공 |
 
-### 7-3. 테스트용 API
+### 7-3. 장애 검증용 API
 
 | Method | Endpoint | 설명 |
 |---|---|---|

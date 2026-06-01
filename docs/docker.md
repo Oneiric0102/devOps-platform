@@ -1,9 +1,9 @@
 # Docker 구성 문서
 
-## 1. 문서 개요
+## 1. 구성 범위
 
-이 문서는 DevOps Platform 프로젝트의 Docker 및 Docker Compose 구성을 정리한다.  
-범위는 서비스 구성, 컨테이너 역할, 네트워크, 볼륨, 환경변수, 실행 및 점검 절차다.
+본 문서는 DevOps Platform Portfolio 프로젝트의 Docker 및 Docker Compose 구성을 정리한다.  
+범위는 서비스 구성, 컨테이너 역할, 네트워크, 볼륨, 환경변수, CI/CD 이미지 배포 구성이다.
 
 ## 2. 구성 대상
 
@@ -211,7 +211,6 @@ POSTGRES_DB=devops_platform
 POSTGRES_USER=devops_user
 POSTGRES_PASSWORD=change_me
 
-BACKEND_PORT=3000
 FRONTEND_PORT=8080
 
 NODE_ENV=production
@@ -255,13 +254,13 @@ backend는 postgres와 redis가 healthy 상태가 된 뒤 시작되며, frontend
 
 ## 15. 실행 및 점검 절차
 
-실행:
+Docker Compose 실행:
 
 ```bash
 docker compose up -d --build
 ```
 
-상태 확인:
+컨테이너 상태 확인:
 
 ```bash
 docker compose ps
@@ -277,7 +276,7 @@ docker compose logs -f postgres
 docker compose logs -f redis
 ```
 
-기본 점검:
+API 상태 확인:
 
 ```bash
 curl http://localhost:8080/health
@@ -302,9 +301,7 @@ docker compose up -d --build
 
 GitHub Actions 기준 Docker 이미지 배포 구성을 정리한다.
 
----
-
-### 1. 워크플로 구성
+### 17-1. 워크플로 구성
 
 워크플로 파일:
 
@@ -320,9 +317,7 @@ GitHub Actions 기준 Docker 이미지 배포 구성을 정리한다.
 | `ci.yml` | 코드, 테스트, Docker 빌드, Compose 구성 검증 |
 | `docker-publish.yml` | master 브랜치 기준 Docker 이미지 배포 |
 
----
-
-### 2. CI 실행 조건
+### 17-2. CI 실행 조건
 
 실행 조건:
 
@@ -345,9 +340,7 @@ GitHub Actions 기준 Docker 이미지 배포 구성을 정리한다.
 
 CI 단계에서는 Docker 이미지를 레지스트리에 push하지 않는다.
 
----
-
-### 3. Docker 이미지 배포 조건
+### 17-3. Docker 이미지 배포 조건
 
 실행 조건:
 
@@ -357,29 +350,18 @@ CI 단계에서는 Docker 이미지를 레지스트리에 push하지 않는다.
 
 develop 브랜치에서는 CI 검증만 수행한다.
 
----
-
-### 4. GHCR 이미지 이름
+### 17-4. GHCR 이미지 이름
 
 Docker 이미지는 GitHub Container Registry에 배포한다.
 
 이미지 이름:
 
 ```text
-ghcr.io/OWNER/REPOSITORY-backend
-ghcr.io/OWNER/REPOSITORY-frontend
+ghcr.io/oneiric0102/devops-platform-backend
+ghcr.io/oneiric0102/devops-platform-frontend
 ```
 
-예시:
-
-```text
-ghcr.io/your-username/devops-platform-backend
-ghcr.io/your-username/devops-platform-frontend
-```
-
----
-
-### 5. 이미지 태그
+### 17-5. 이미지 태그
 
 사용 태그:
 
@@ -391,16 +373,14 @@ ghcr.io/your-username/devops-platform-frontend
 예시:
 
 ```text
-ghcr.io/your-username/devops-platform-backend:master
-ghcr.io/your-username/devops-platform-backend:sha-a1b2c3d
+ghcr.io/oneiric0102/devops-platform-backend:master
+ghcr.io/oneiric0102/devops-platform-backend:sha-a1b2c3d
 
-ghcr.io/your-username/devops-platform-frontend:master
-ghcr.io/your-username/devops-platform-frontend:sha-a1b2c3d
+ghcr.io/oneiric0102/devops-platform-frontend:master
+ghcr.io/oneiric0102/devops-platform-frontend:sha-a1b2c3d
 ```
 
----
-
-### 6. 워크플로 권한
+### 17-6. 워크플로 권한
 
 GHCR 이미지 push 권한:
 
@@ -410,9 +390,7 @@ permissions:
   packages: write
 ```
 
----
-
-### 7. 브랜치 운영 흐름
+### 17-7. 브랜치 운영 흐름
 
 운영 흐름:
 

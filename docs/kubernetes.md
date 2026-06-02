@@ -422,3 +422,107 @@ linux/arm64
 - rollback 확인
 - readinessProbe 동작 확인
 ```
+
+
+## 14. 배포 스크립트
+
+`scripts/` 디렉터리는 Kubernetes 배포, 상태 확인, rollback 절차를 실행하는 스크립트를 포함한다.
+
+```text
+scripts
+├─ check-k8s.sh
+├─ deploy-k8s.sh
+├─ rollback-backend.sh
+└─ rollback-frontend.sh
+```
+
+스크립트 구성:
+
+| 파일 | 역할 |
+|---|---|
+| `check-k8s.sh` | Kubernetes 리소스 상태 및 주요 HTTP endpoint 확인 |
+| `deploy-k8s.sh` | Kubernetes manifest 적용 및 애플리케이션 rollout 확인 |
+| `rollback-backend.sh` | Backend Deployment 이전 revision rollback |
+| `rollback-frontend.sh` | Frontend Deployment 이전 revision rollback |
+
+### 14-1. 상태 확인
+
+```bash
+./scripts/check-k8s.sh
+```
+
+확인 항목:
+
+```text
+- 현재 Kubernetes context
+- Node 상태
+- Pod 상태
+- Service 상태
+- Ingress 상태
+- PVC 상태
+- Backend rollout 상태
+- Frontend rollout 상태
+- /health 응답
+- /ready 응답
+- /api/todos 응답
+```
+
+### 14-2. 배포
+
+```bash
+./scripts/deploy-k8s.sh
+```
+
+처리 순서:
+
+```text
+namespace.yaml
+  ↓
+configmap.yaml / secret.yaml
+  ↓
+postgres.yaml / redis.yaml
+  ↓
+PostgreSQL StatefulSet rollout 확인
+  ↓
+Redis Deployment rollout 확인
+  ↓
+backend.yaml / frontend.yaml / ingress.yaml
+  ↓
+Backend, Frontend Deployment rollout 확인
+  ↓
+/health, /ready 응답 확인
+```
+
+### 14-3. Backend rollback
+
+```bash
+./scripts/rollback-backend.sh
+```
+
+처리 항목:
+
+```text
+- Backend Deployment rollout history 확인
+- Backend Deployment 이전 revision rollback
+- Backend Deployment rollout 상태 확인
+- Backend Pod 상태 확인
+- /ready 응답 확인
+```
+
+### 14-4. Frontend rollback
+
+```bash
+./scripts/rollback-frontend.sh
+```
+
+처리 항목:
+
+```text
+- Frontend Deployment rollout history 확인
+- Frontend Deployment 이전 revision rollback
+- Frontend Deployment rollout 상태 확인
+- Frontend Pod 상태 확인
+- frontend 응답 확인
+```
+
+배포 스크립트는 수동 운영 절차와 GitHub Actions 기반 CD 자동화에서 공통으로 사용할 수 있다.

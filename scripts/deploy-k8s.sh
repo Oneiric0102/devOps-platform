@@ -28,6 +28,12 @@ kubectl apply -f k8s/frontend.yaml
 kubectl apply -f k8s/ingress.yaml
 
 echo ""
+echo "Restarting application deployments to pull latest master images..."
+
+kubectl rollout restart deployment/backend -n "${NAMESPACE}"
+kubectl rollout restart deployment/frontend -n "${NAMESPACE}"
+
+echo ""
 echo "Waiting for application rollout..."
 
 kubectl rollout status deployment/backend -n "${NAMESPACE}" --timeout=180s

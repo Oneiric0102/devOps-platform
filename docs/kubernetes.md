@@ -292,27 +292,32 @@ frontend Service:80
 
 Backend API 라우팅은 Ingress가 아니라 frontend Nginx proxy에서 처리한다.
 
-## 11. 운영 검증 범위
+## 11. 운영 검증 기준
 
-Kubernetes 단계의 검증 범위는 다음과 같다.
+Kubernetes 배포 후 검증 기준은 리소스 상태, 애플리케이션 응답, 데이터 계층, 배포 제어 동작으로 구분한다.
 
-```text
-- kind 클러스터 생성 상태
-- ingress-nginx controller 실행 상태
-- devops-platform namespace 생성 상태
-- frontend, backend, postgres, redis Pod 실행 상태
-- Service 기반 내부 네트워크 연결
-- PostgreSQL PVC 생성 및 데이터 유지
-- Redis 캐시 생성 및 TTL 동작
-- /health 응답 상태
-- /ready 응답 상태
-- /api/todos 생성 및 조회 동작
-- /metrics Prometheus 형식 출력
-- Deployment rollout 상태
-- Rolling restart 동작
-- scale out / scale in 동작
-- rollback 동작
-- readinessProbe 장애 반영
+| 구분 | 검증 항목 |
+|---|---|
+| 클러스터 | kind 클러스터, ingress-nginx controller, `devops-platform` namespace 상태 |
+| 리소스 | frontend, backend, postgres, redis Pod 및 Service 상태 |
+| 스토리지 | PostgreSQL PVC 생성 및 데이터 유지 |
+| 캐시 | Redis 캐시 생성, 조회, TTL 동작 |
+| API | `/health`, `/ready`, `/api/todos`, `/metrics` 응답 |
+| 배포 제어 | rollout, rolling restart, scale out / scale in, rollback 동작 |
+| Probe | readinessProbe 장애 반영 및 트래픽 제외 동작 |
+
+주요 확인 명령:
+
+```bash
+kubectl get pods -n devops-platform
+kubectl get svc -n devops-platform
+kubectl get ingress -n devops-platform
+kubectl get pvc -n devops-platform
+kubectl rollout status deployment/backend -n devops-platform
+kubectl rollout status deployment/frontend -n devops-platform
+curl http://localhost:8081/health
+curl http://localhost:8081/ready
+curl http://localhost:8081/api/todos
 ```
 
 ## 12. 장애 대응 기록
@@ -402,29 +407,7 @@ linux/amd64
 linux/arm64
 ```
 
-## 13. 완료 기준
-
-```text
-- kind 클러스터 생성 완료
-- ingress-nginx controller 실행 완료
-- k8s manifest 작성 완료
-- 모든 Pod 1/1 Running
-- /health 정상 응답
-- /ready 정상 응답
-- /api/todos 정상 응답
-- /metrics 정상 출력
-- Todo 생성 및 조회 정상 동작
-- PostgreSQL todos 테이블 확인
-- Redis 캐시 확인
-- rollout status 확인
-- rolling restart 확인
-- scale out / scale in 확인
-- rollback 확인
-- readinessProbe 동작 확인
-```
-
-
-## 14. 배포 스크립트
+## 13. 배포 스크립트
 
 `scripts/` 디렉터리는 Kubernetes 배포, 상태 확인, rollback 절차를 실행하는 스크립트를 포함한다.
 
@@ -440,34 +423,12 @@ scripts
 
 | 파일 | 역할 |
 |---|---|
-| `check-k8s.sh` | Kubernetes 리소스 상태 및 주요 HTTP endpoint 확인 |
+| `check-k8s.sh` | 11장 검증 기준에 따른 리소스 상태 및 주요 HTTP 엔드포인트 확인 |
 | `deploy-k8s.sh` | Kubernetes manifest 적용 및 애플리케이션 rollout 확인 |
 | `rollback-backend.sh` | Backend Deployment 이전 revision rollback |
 | `rollback-frontend.sh` | Frontend Deployment 이전 revision rollback |
 
-### 14-1. 상태 확인
-
-```bash
-./scripts/check-k8s.sh
-```
-
-확인 항목:
-
-```text
-- 현재 Kubernetes context
-- Node 상태
-- Pod 상태
-- Service 상태
-- Ingress 상태
-- PVC 상태
-- Backend rollout 상태
-- Frontend rollout 상태
-- /health 응답
-- /ready 응답
-- /api/todos 응답
-```
-
-### 14-2. 배포
+### 13-1. 배포
 
 ```bash
 ./scripts/deploy-k8s.sh
@@ -493,36 +454,96 @@ Backend, Frontend Deployment rollout 확인
 /health, /ready 응답 확인
 ```
 
-### 14-3. Backend rollback
+### 13-2. 상태 확인
+
+```bash
+./scripts/check-k8s.sh
+```
+
+`check-k8s.sh`는 배포 후 점검과 CD 완료 검증에서 공통으로 사용한다.
+
+### 13-3. Rollback
 
 ```bash
 ./scripts/rollback-backend.sh
-```
-
-처리 항목:
-
-```text
-- Backend Deployment rollout history 확인
-- Backend Deployment 이전 revision rollback
-- Backend Deployment rollout 상태 확인
-- Backend Pod 상태 확인
-- /ready 응답 확인
-```
-
-### 14-4. Frontend rollback
-
-```bash
 ./scripts/rollback-frontend.sh
 ```
 
-처리 항목:
+수동 rollback 명령:
 
-```text
-- Frontend Deployment rollout history 확인
-- Frontend Deployment 이전 revision rollback
-- Frontend Deployment rollout 상태 확인
-- Frontend Pod 상태 확인
-- frontend 응답 확인
+```bash
+kubectl rollout undo deployment/backend -n devops-platform
+kubectl rollout undo deployment/frontend -n devops-platform
 ```
 
-배포 스크립트는 수동 운영 절차와 GitHub Actions 기반 CD 자동화에서 공통으로 사용할 수 있다.
+## 14. CD 자동화
+
+master 브랜치에 변경사항이 병합되면 GitHub Actions에서 Kubernetes 배포 workflow를 실행한다.
+
+전체 흐름:
+
+```text
+develop 작업
+  ↓
+Pull Request 생성
+  ↓
+CI 검증
+  ↓
+master 병합
+  ↓
+Docker Publish
+  ↓
+GHCR image push
+  ↓
+Deploy to Kubernetes
+  ↓
+Oracle Cloud 서버에서 deploy-k8s.sh 실행
+  ↓
+Kubernetes rollout 확인
+```
+
+workflow 실행 순서:
+
+```text
+CI
+Docker Publish
+Deploy to Kubernetes
+```
+
+배포 완료 후 `check-k8s.sh`로 11장 검증 기준을 확인한다.
+
+### 14-1. 배포 실패 점검
+
+점검 순서:
+
+```text
+- GitHub Actions Deploy to Kubernetes 로그 확인
+- SSH 접속 실패 여부 확인
+- 서버 kubectl context 확인
+- Pod 상태 확인
+- Backend, Frontend 로그 확인
+- rollout 상태 확인
+```
+
+확인 명령:
+
+```bash
+kubectl config current-context
+kubectl get pods -n devops-platform
+kubectl logs -n devops-platform deployment/backend
+kubectl logs -n devops-platform deployment/frontend
+kubectl rollout status deployment/backend -n devops-platform
+kubectl rollout status deployment/frontend -n devops-platform
+```
+
+## 15. 완료 기준
+
+다음 조건을 모두 충족하면 Kubernetes 배포 구성을 완료한 상태로 본다.
+
+```text
+- k8s manifest가 대상 namespace에 정상 적용됨
+- 모든 Pod가 Running 상태로 유지됨
+- 11장 운영 검증 기준을 충족함
+- deploy-k8s.sh, check-k8s.sh, rollback 스크립트가 정상 동작함
+- GitHub Actions 기반 CD 흐름에서 배포와 검증이 재현 가능함
+```

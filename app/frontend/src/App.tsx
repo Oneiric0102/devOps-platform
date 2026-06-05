@@ -94,7 +94,7 @@ function App() {
     <main className="page">
       <section className="hero">
         <div className="hero__content">
-          <p className="eyebrow">DevOps Project</p>
+          <p className="eyebrow">DevOps Project · Kubernetes CD</p>
           <h1>DevOps Todo Dashboard</h1>
           <p className="hero__description">
             React + TypeScript frontend와 Node.js + Express backend를 연결한

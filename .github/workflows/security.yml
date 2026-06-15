@@ -1,0 +1,116 @@
+name: Security
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  npm-audit:
+    name: NPM Audit
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        app:
+          - name: backend
+            path: app/backend
+          - name: frontend
+            path: app/frontend
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.app.path }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.app.path }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+
+  trivy-filesystem:
+    name: Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+          format: table
+
+  trivy-kubernetes-config:
+    name: Trivy Kubernetes Config Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: config
+          scan-ref: k8s
+          severity: CRITICAL
+          exit-code: "1"
+          format: table
+
+  trivy-image:
+    name: Trivy Docker Image Scan
+    runs-on: ubuntu-latest
+    needs:
+      - npm-audit
+
+    strategy:
+      matrix:
+        image:
+          - name: backend
+            dockerfile: app/backend/Dockerfile
+            context: app/backend
+            tag: devops-platform-backend:security
+          - name: frontend
+            dockerfile: app/frontend/Dockerfile
+            context: app/frontend
+            tag: devops-platform-frontend:security
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build image
+        run: docker build -f ${{ matrix.image.dockerfile }} -t ${{ matrix.image.tag }} ${{ matrix.image.context }}
+
+      - name: Run Trivy image scan
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ matrix.image.tag }}
+          scanners: vuln,secret
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+          format: table

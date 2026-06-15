@@ -307,3 +307,70 @@ Step 5. 모니터링 및 관측성 구성
 - Kubernetes 리소스 상태 모니터링
 - 장애 탐지 및 알림 기준 정리
 ```
+
+## 14. 모니터링 구성
+
+모니터링 단계는 Backend의 `/metrics` 엔드포인트를 Prometheus 수집 대상으로 등록하고, Grafana에서 Prometheus datasource를 통해 애플리케이션 메트릭을 시각화하는 범위다.
+
+구성 요소:
+
+```text
+Backend /metrics
+  ↓
+Prometheus
+  ↓
+Grafana
+```
+
+관련 파일:
+
+| 파일 | 역할 |
+|---|---|
+| `k8s/monitoring/prometheus.yaml` | Prometheus Deployment, Service, ConfigMap, PVC 구성 |
+| `k8s/monitoring/grafana.yaml` | Grafana Deployment, Service, datasource ConfigMap, PVC 구성 |
+
+배포:
+
+```bash
+kubectl apply -f k8s/monitoring/prometheus.yaml
+kubectl apply -f k8s/monitoring/grafana.yaml
+```
+
+상태 확인:
+
+```bash
+kubectl rollout status deployment/prometheus -n devops-platform
+kubectl rollout status deployment/grafana -n devops-platform
+```
+
+Prometheus 접속:
+
+```bash
+kubectl port-forward -n devops-platform svc/prometheus 9090:9090
+```
+
+접속:
+
+```text
+http://localhost:9090
+```
+
+Grafana 접속:
+
+```bash
+kubectl port-forward -n devops-platform svc/grafana 3001:3000
+```
+
+접속:
+
+```text
+http://localhost:3001
+```
+
+초기 계정:
+
+```text
+admin / admin
+```
+
+모니터링 구성 상세는 [Monitoring 구성 문서](docs/mornitoring.md)에 정리한다.

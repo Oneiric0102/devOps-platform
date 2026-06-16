@@ -374,3 +374,57 @@ admin / admin
 ```
 
 모니터링 구성 상세는 [Monitoring 구성 문서](docs/mornitoring.md)에 정리한다.
+
+## 15. 보안 스캔 구성
+
+보안 스캔 단계는 GitHub Actions에서 의존성, 파일시스템, Kubernetes manifest, Docker 이미지 보안 검사를 자동화한 범위다.
+
+관련 파일:
+
+```text
+.github/workflows/security.yml
+```
+
+실행 조건:
+
+| 조건 | 대상 |
+|---|---|
+| Push | `develop`, `master` |
+| Pull Request | `master` |
+
+검사 구성:
+
+| Job | 도구 | 검사 대상 |
+|---|---|---|
+| NPM Audit | npm audit | Backend, Frontend 의존성 |
+| Trivy Filesystem Scan | Trivy | 저장소 파일시스템, secret, misconfiguration |
+| Trivy Kubernetes Config Scan | Trivy | `k8s/` Kubernetes manifest |
+| Trivy Docker Image Scan | Trivy | Backend, Frontend Docker 이미지 |
+
+품질 게이트:
+
+| 항목 | 실패 기준 |
+|---|---|
+| npm audit | high 이상 |
+| Trivy filesystem | CRITICAL |
+| Trivy config | CRITICAL |
+| Trivy image | CRITICAL |
+
+로컬 검증:
+
+```bash
+cd app/backend
+npm audit --audit-level=high
+
+cd ../frontend
+npm audit --audit-level=high
+```
+
+스캔 대상 이미지:
+
+```text
+devops-platform-backend:security
+devops-platform-frontend:security
+```
+
+보안 스캔 구성 상세는 [Security Scan 구성 문서](docs/security.md)에 정리한다.

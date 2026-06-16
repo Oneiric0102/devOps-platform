@@ -428,3 +428,65 @@ devops-platform-frontend:security
 ```
 
 보안 스캔 구성 상세는 [Security Scan 구성 문서](docs/security.md)에 정리한다.
+
+## 16. 알림 및 장애 대응 구성
+
+알림 및 장애 대응 단계는 GitHub Actions 실행 결과를 Slack으로 전송하고, 배포 실패 또는 보안 스캔 실패 시 확인 절차와 rollback 경로를 제공하는 범위다.
+
+알림 흐름:
+
+```text
+GitHub Actions
+  ↓
+Workflow 결과 판정
+  ↓
+Slack Incoming Webhook
+  ↓
+운영자 확인 및 조치
+```
+
+알림 대상:
+
+| Workflow | 조건 | 알림 |
+|---|---|---|
+| `Deploy to Kubernetes` | 배포 성공 | Kubernetes 배포 성공 알림 |
+| `Deploy to Kubernetes` | 배포 실패 | Kubernetes 배포 실패 알림 |
+| `Security` | 보안 스캔 실패 | Security workflow 실패 알림 |
+
+관련 Secret:
+
+| Secret | 용도 |
+|---|---|
+| `SLACK_WEBHOOK_URL` | Slack Incoming Webhook URL |
+| `OCI_HOST` | Oracle Cloud 서버 주소 |
+| `OCI_USER` | Oracle Cloud SSH 사용자 |
+| `OCI_SSH_KEY` | Oracle Cloud SSH private key |
+| `OCI_PROJECT_PATH` | 서버 내 프로젝트 경로 |
+
+배포 실패 확인 명령:
+
+```bash
+kubectl get pods -n devops-platform
+kubectl get svc -n devops-platform
+kubectl get ingress -n devops-platform
+kubectl logs -n devops-platform deployment/backend
+kubectl logs -n devops-platform deployment/frontend
+kubectl rollout status deployment/backend -n devops-platform
+kubectl rollout status deployment/frontend -n devops-platform
+```
+
+Rollback:
+
+```bash
+./scripts/rollback-backend.sh
+./scripts/rollback-frontend.sh
+```
+
+수동 rollback:
+
+```bash
+kubectl rollout undo deployment/backend -n devops-platform
+kubectl rollout undo deployment/frontend -n devops-platform
+```
+
+장애 대응 절차 상세는 [Incident Response 문서](docs/incident-response.md)에 정리한다.

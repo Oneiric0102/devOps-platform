@@ -49,3 +49,106 @@ jobs:
             "cd '${{ secrets.OCI_PROJECT_PATH }}' && \
              chmod +x scripts/check-k8s.sh && \
              ./scripts/check-k8s.sh"
+
+      - name: Notify Slack on deployment success
+        if: ${{ success() }}
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "✅ Kubernetes 배포 성공",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "✅ Kubernetes 배포 성공"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Workflow:*\n${{ github.workflow }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\nmaster"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Server:*\nOracle Cloud kind cluster"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "배포 스크립트와 상태 확인 스크립트가 모두 성공했습니다."
+                  }
+                }
+              ]
+            }
+
+      - name: Notify Slack on deployment failure
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "🚨 Kubernetes 배포 실패",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🚨 Kubernetes 배포 실패"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Workflow:*\n${{ github.workflow }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\nmaster"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Action:*\nGitHub Actions 로그 확인 필요"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*서버 확인 명령어:*\n```kubectl get pods -n devops-platform\nkubectl logs -n devops-platform deployment/backend\nkubectl logs -n devops-platform deployment/frontend\nkubectl rollout status deployment/backend -n devops-platform\nkubectl rollout status deployment/frontend -n devops-platform```"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Rollback:*\n```./scripts/rollback-backend.sh\n./scripts/rollback-frontend.sh```"
+                  }
+                }
+              ]
+            }

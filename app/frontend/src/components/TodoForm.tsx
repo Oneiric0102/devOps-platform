@@ -48,7 +48,7 @@ export function TodoForm({ onSubmit }: TodoFormProps) {
         <textarea
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          placeholder="작업에 대한 간단한 설명을 입력하세요."
+          placeholder="설명"
         />
       </label>
 

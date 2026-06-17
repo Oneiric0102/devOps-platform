@@ -2,21 +2,51 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
+
+  if (!value || value.trim().length === 0) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
+}
+
+function getNumberEnv(name: string, fallback?: number): number {
+  const rawValue = process.env[name];
+
+  if (!rawValue) {
+    if (fallback !== undefined) {
+      return fallback;
+    }
+
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  const value = Number(rawValue);
+
+  if (Number.isNaN(value)) {
+    throw new Error(`Environment variable ${name} must be a number`);
+  }
+
+  return value;
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
-  port: Number(process.env.PORT ?? 3000),
+  port: getNumberEnv('PORT', 3000),
 
   database: {
-    host: process.env.DATABASE_HOST ?? 'localhost',
-    port: Number(process.env.DATABASE_PORT ?? 5432),
-    name: process.env.DATABASE_NAME ?? 'devops_platform',
-    user: process.env.DATABASE_USER ?? 'ops_admin',
-    password: process.env.DATABASE_PASSWORD ?? 'dev1257@@',
+    host: getRequiredEnv('DATABASE_HOST'),
+    port: getNumberEnv('DATABASE_PORT'),
+    name: getRequiredEnv('DATABASE_NAME'),
+    user: getRequiredEnv('DATABASE_USER'),
+    password: getRequiredEnv('DATABASE_PASSWORD'),
   },
 
   redis: {
-    host: process.env.REDIS_HOST ?? 'localhost',
-    port: Number(process.env.REDIS_PORT ?? 6379),
+    host: getRequiredEnv('REDIS_HOST'),
+    port: getNumberEnv('REDIS_PORT'),
   },
 
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',

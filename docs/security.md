@@ -2,8 +2,8 @@
 
 ## 1. 구성 범위
 
-본 문서는 DevOps Platform Portfolio 프로젝트의 보안 스캔 구성을 정리한다.  
-범위는 GitHub Actions 기반 의존성 취약점 검사, 파일시스템 검사, Kubernetes manifest 검사, Docker 이미지 검사다.
+GitHub Actions에서 실행하는 보안 스캔 기준을 정리한다.  
+의존성 취약점, 파일시스템, Kubernetes manifest, Docker 이미지를 검사 대상으로 둔다.
 
 ## 2. Workflow 구성
 

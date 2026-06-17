@@ -1,21 +1,17 @@
-# Monitoring 구성
+# Monitoring 구성 문서
 
-## 1. 구성 개요
+## 1. 구성 범위
 
-본 문서는 Kubernetes 환경에서 Backend 메트릭을 수집하고 시각화하기 위한 모니터링 구성을 정리한다.
+Kubernetes 환경에서 Backend 메트릭을 수집하고 Grafana에서 조회하는 구성을 정리한다.
 
-모니터링 범위는 Backend의 `/metrics` 엔드포인트, Prometheus 수집 설정, Grafana datasource 구성, 기본 PromQL 검증까지 포함한다.
-
-## 2. 구현 범위
+## 2. 작업 범위
 
 ```text
-Step 1. Backend /metrics 엔드포인트 노출
-Step 2. Prometheus scrape target 구성
-Step 3. Grafana Prometheus datasource 구성
-Step 4. PromQL 기반 수집 상태 검증
+- Backend /metrics 엔드포인트
+- Prometheus scrape target
+- Grafana Prometheus datasource
+- PromQL 기반 수집 상태 검증
 ```
-
-포함 항목:
 
 ```text
 - prom-client 기반 Node.js 기본 메트릭 수집
@@ -72,7 +68,7 @@ Dashboard / Explore
 
 Backend는 `prom-client`를 통해 프로세스 기본 메트릭과 HTTP 요청 지연 시간 메트릭을 노출한다.  
 Prometheus는 Backend Service DNS를 대상으로 `/metrics`를 수집한다.  
-Grafana는 Prometheus를 datasource로 등록하고 PromQL 기반 조회와 대시보드 구성을 담당한다.
+Grafana는 Prometheus datasource와 PromQL 조회 화면을 제공한다.
 
 ## 6. Backend 메트릭
 

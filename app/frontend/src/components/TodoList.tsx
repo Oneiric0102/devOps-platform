@@ -39,7 +39,7 @@ export function TodoList({ todos, onToggle, onDelete }: TodoListProps) {
             )}
 
             <div className="todo-meta">
-              <span>{todo.completed ? '완료됨' : '진행중'}</span>
+              <span>{todo.completed ? '완료' : '진행 중'}</span>
               <span>생성일: {formatDate(todo.createdAt)}</span>
             </div>
           </div>

@@ -2,10 +2,8 @@
 
 ## 1. 배포 범위
 
-본 문서는 DevOps Platform Portfolio 프로젝트의 Kubernetes 배포 구성을 정리한다.  
-Docker Compose 기반 통합 실행 환경을 kind 기반 Kubernetes 클러스터 배포 구조로 확장한 범위다.
-
-포함 항목:
+Docker Compose 실행 구성을 kind 기반 Kubernetes 배포 구조로 옮긴 내용을 정리한다.  
+애플리케이션, 데이터 저장소, ingress, probe, rollout 검증 기준을 포함한다.
 
 ```text
 - kind 기반 로컬 Kubernetes 클러스터 구성
@@ -53,8 +51,8 @@ backend Pod
 PostgreSQL / Redis
 ```
 
-Frontend는 React 빌드 결과물을 Nginx로 제공한다.  
-Backend는 Node.js Express 기반 Todo API와 운영용 엔드포인트를 제공한다.  
+Frontend는 React 빌드 결과물을 Nginx로 서빙한다.  
+Backend는 Todo API와 운영용 엔드포인트를 노출한다.  
 PostgreSQL은 Todo 데이터를 저장하며, Redis는 Todo 목록 조회 캐시로 사용한다.
 
 ## 4. 디렉터리 구조
@@ -66,12 +64,15 @@ devOps-platform
 ├─ k8s
 │  ├─ namespace.yaml
 │  ├─ configmap.yaml
-│  ├─ secret.yaml
+│  ├─ secret.example.yaml
 │  ├─ postgres.yaml
 │  ├─ redis.yaml
 │  ├─ backend.yaml
 │  ├─ frontend.yaml
-│  └─ ingress.yaml
+│  ├─ ingress.yaml
+│  └─ monitoring
+│     ├─ prometheus.yaml
+│     └─ grafana.yaml
 └─ docs
    └─ kubernetes.md
 ```
@@ -107,12 +108,14 @@ ingress-nginx
 |---|---|---|
 | `namespace.yaml` | Namespace | 프로젝트 리소스 격리 |
 | `configmap.yaml` | ConfigMap | 런타임 설정값 관리 |
-| `secret.yaml` | Secret | 데이터베이스 비밀번호 관리 |
+| `secret.example.yaml` | Secret 예시 | 실제 배포용 `secret.yaml` 생성 기준 |
 | `postgres.yaml` | Service, PVC, StatefulSet, ConfigMap | PostgreSQL 실행 및 데이터 유지 |
 | `redis.yaml` | Service, Deployment | Redis 캐시 실행 |
 | `backend.yaml` | Service, Deployment | Backend API 서버 실행 |
 | `frontend.yaml` | Service, Deployment | Frontend Nginx 실행 |
 | `ingress.yaml` | Ingress | 외부 HTTP 요청 라우팅 |
+| `monitoring/prometheus.yaml` | Service, PVC, ConfigMap, Deployment | Backend 메트릭 수집 |
+| `monitoring/grafana.yaml` | Service, PVC, ConfigMap, Deployment | Prometheus datasource 및 시각화 |
 
 ## 7. 설정 구성
 
@@ -138,6 +141,13 @@ DATABASE_PASSWORD
 POSTGRES_PASSWORD
 ```
 
+저장소에는 실제 Secret을 커밋하지 않는다. 배포 전 예시 파일을 복사해 실제 값을 입력한다.
+
+```bash
+cp k8s/secret.example.yaml k8s/secret.yaml
+vi k8s/secret.yaml
+```
+
 Kubernetes 내부 통신은 Service 이름을 기준으로 한다.  
 Backend는 PostgreSQL을 `postgres`, Redis를 `redis` 호스트로 참조한다.
 
@@ -159,7 +169,7 @@ PostgreSQL은 Todo 데이터의 영구 저장소다.
 ```
 
 `postgres-pvc`는 `/var/lib/postgresql/data` 경로에 마운트된다.  
-`postgres-init-sql` ConfigMap은 초기 Todo 테이블 생성 SQL을 제공한다.
+`postgres-init-sql` ConfigMap에 초기 Todo 테이블 생성 SQL을 둔다.
 
 생성 테이블:
 
@@ -253,7 +263,7 @@ ghcr.io/oneiric0102/devops-platform-frontend:master
 - Replicas: 1
 ```
 
-Frontend 컨테이너는 Nginx로 React 정적 파일을 제공한다.  
+Frontend 컨테이너는 Nginx로 React 정적 파일을 서빙한다.  
 API 요청은 frontend 컨테이너의 Nginx proxy를 통해 Backend Service로 전달된다.
 
 Proxy 경로:

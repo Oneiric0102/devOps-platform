@@ -2,22 +2,8 @@
 
 ## 1. 대응 범위
 
-본 문서는 DevOps Platform Portfolio 프로젝트의 알림 및 장애 대응 구성을 정리한다.  
-GitHub Actions 기반 배포, 보안 스캔, Kubernetes 운영 확인 과정에서 실패가 발생했을 때의 확인 절차와 rollback 경로를 포함한다.
-
-포함 항목:
-
-```text
-- GitHub Actions 결과 Slack 알림
-- Deploy to Kubernetes 성공 및 실패 알림
-- Security workflow 실패 알림
-- Oracle Cloud kind 클러스터 상태 확인
-- Kubernetes Deployment rollout 상태 확인
-- Backend, Frontend 로그 확인
-- Backend, Frontend rollback 절차
-- npm audit 및 Trivy 실패 대응 기준
-- Prometheus, Grafana 상태 확인 경로
-```
+배포와 보안 스캔 실패 시 확인할 항목과 rollback 경로를 정리한다.  
+GitHub Actions, Slack 알림, Oracle Cloud kind 클러스터, Kubernetes 리소스 상태를 기준으로 대응한다.
 
 ## 2. 운영 환경
 

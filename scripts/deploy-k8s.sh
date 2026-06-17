@@ -10,6 +10,12 @@ kubectl config current-context
 echo ""
 echo "Applying Kubernetes manifests..."
 
+if [ ! -f k8s/secret.yaml ]; then
+  echo "Missing k8s/secret.yaml."
+  echo "Create it from k8s/secret.example.yaml and set real secret values before deploying."
+  exit 1
+fi
+
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/secret.yaml

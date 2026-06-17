@@ -134,13 +134,13 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "🚨 Security workflow 실패",
+              "text": "Security workflow 실패",
               "blocks": [
                 {
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "🚨 Security workflow 실패"
+                    "text": "Security workflow 실패"
                   }
                 },
                 {

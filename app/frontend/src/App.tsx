@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   createTodo,
   deleteTodo,
@@ -25,7 +25,7 @@ function App() {
   const completionRate =
     totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100);
 
-  async function loadTodos() {
+  const loadTodos = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage('');
 
@@ -33,21 +33,21 @@ function App() {
       const result = await fetchTodos();
       setTodos(result.data);
       setCacheSource(result.source);
-    } catch (error) {
+    } catch {
       setErrorMessage('Todo 목록을 불러오지 못했습니다.');
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
-  async function loadHealth() {
+  const loadHealth = useCallback(async () => {
     try {
       const result = await fetchHealth();
       setHealthStatus(result.status);
-    } catch (error) {
+    } catch {
       setHealthStatus('unavailable');
     }
-  }
+  }, []);
 
   async function handleCreateTodo(payload: {
     title: string;
@@ -56,7 +56,7 @@ function App() {
     try {
       await createTodo(payload);
       await loadTodos();
-    } catch (error) {
+    } catch {
       setErrorMessage('Todo 생성에 실패했습니다.');
     }
   }
@@ -68,7 +68,7 @@ function App() {
       });
 
       await loadTodos();
-    } catch (error) {
+    } catch {
       setErrorMessage('Todo 상태 변경에 실패했습니다.');
     }
   }
@@ -77,28 +77,33 @@ function App() {
     try {
       await deleteTodo(id);
       await loadTodos();
-    } catch (error) {
+    } catch {
       setErrorMessage('Todo 삭제에 실패했습니다.');
     }
   }
 
-  async function handleRefresh() {
+  const handleRefresh = useCallback(async () => {
     await Promise.all([loadTodos(), loadHealth()]);
-  }
+  }, [loadHealth, loadTodos]);
 
   useEffect(() => {
-    void handleRefresh();
-  }, []);
+    const timeoutId = window.setTimeout(() => {
+      void handleRefresh();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [handleRefresh]);
 
   return (
     <main className="page">
       <section className="hero">
         <div className="hero__content">
-          <p className="eyebrow">DevOps Project · Kubernetes CD</p>
-          <h1>DevOps Todo Dashboard</h1>
+          <p className="eyebrow">DevOps Platform</p>
+          <h1>Todo Operations</h1>
           <p className="hero__description">
-            React + TypeScript frontend와 Node.js + Express backend를 연결한
-            운영형 Todo 서비스입니다.
+            React, Express, PostgreSQL, Redis로 구성한 Todo 관리 화면
           </p>
         </div>
 
@@ -109,35 +114,35 @@ function App() {
 
       <section className="summary-grid">
         <article className="summary-card">
-          <span className="summary-card__label">전체 Todo</span>
+          <span className="summary-card__label">전체</span>
           <strong className="summary-card__value">{totalCount}</strong>
-          <span className="summary-card__hint">등록된 전체 작업</span>
+          <span className="summary-card__hint">등록됨</span>
         </article>
 
         <article className="summary-card">
           <span className="summary-card__label">완료</span>
           <strong className="summary-card__value">{completedCount}</strong>
-          <span className="summary-card__hint">완료 처리된 작업</span>
+          <span className="summary-card__hint">완료됨</span>
         </article>
 
         <article className="summary-card">
-          <span className="summary-card__label">진행중</span>
+          <span className="summary-card__label">진행 중</span>
           <strong className="summary-card__value">{pendingCount}</strong>
-          <span className="summary-card__hint">아직 남은 작업</span>
+          <span className="summary-card__hint">미완료</span>
         </article>
 
         <article className="summary-card">
           <span className="summary-card__label">완료율</span>
           <strong className="summary-card__value">{completionRate}%</strong>
-          <span className="summary-card__hint">현재 진행률</span>
+          <span className="summary-card__hint">완료 비율</span>
         </article>
       </section>
 
       <section className="toolbar">
         <div className="toolbar__left">
-          <span className="section-title">서비스 상태</span>
+          <span className="section-title">상태</span>
           <span className="toolbar__hint">
-            Backend, PostgreSQL, Redis 연동 구조를 확인할 수 있습니다.
+            Backend readiness와 Todo 목록 캐시 기준
           </span>
         </div>
 
@@ -158,7 +163,7 @@ function App() {
       )}
 
       {isLoading && (
-        <div className="alert alert--info">데이터를 불러오는 중입니다.</div>
+        <div className="alert alert--info">로딩 중</div>
       )}
 
       <section className="content-grid">
@@ -166,7 +171,7 @@ function App() {
           <div className="panel__header">
             <div>
               <h2>Todo 생성</h2>
-              <p>새로운 작업을 등록합니다.</p>
+              <p>작업 등록</p>
             </div>
           </div>
 
@@ -177,7 +182,7 @@ function App() {
           <div className="panel__header">
             <div>
               <h2>Todo 목록</h2>
-              <p>등록된 작업과 완료 상태를 확인합니다.</p>
+              <p>작업 상태</p>
             </div>
             <span className="panel__count">{totalCount}개</span>
           </div>
@@ -185,7 +190,7 @@ function App() {
           {todos.length === 0 && !isLoading ? (
             <div className="empty-state">
               <strong>등록된 Todo가 없습니다.</strong>
-              <p>왼쪽 폼에서 첫 번째 Todo를 생성해 보세요.</p>
+              <p>작업을 추가하면 이 영역에 표시됩니다.</p>
             </div>
           ) : (
             <TodoList

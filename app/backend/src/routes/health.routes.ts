@@ -1,8 +1,13 @@
 import { Router } from 'express';
-import { checkPostgres } from '../db/postgres';
-import { checkRedis } from '../db/redis';
+import * as postgres from '../db/postgres';
+import * as redis from '../db/redis';
 
 const router = Router();
+
+export const healthRouteDependencies = {
+  postgres,
+  redis,
+};
 
 router.get('/health', (req, res) => {
   res.json({
@@ -19,13 +24,17 @@ router.get('/ready', async (req, res) => {
   };
 
   try {
-    checks.postgres = (await checkPostgres()) ? 'ok' : 'fail';
+    checks.postgres = (await healthRouteDependencies.postgres.checkPostgres())
+      ? 'ok'
+      : 'fail';
   } catch {
     checks.postgres = 'fail';
   }
 
   try {
-    checks.redis = (await checkRedis()) ? 'ok' : 'fail';
+    checks.redis = (await healthRouteDependencies.redis.checkRedis())
+      ? 'ok'
+      : 'fail';
   } catch {
     checks.redis = 'fail';
   }

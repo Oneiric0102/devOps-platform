@@ -2,8 +2,8 @@
 
 ## 1. 구성 범위
 
-본 문서는 DevOps Platform Portfolio 프로젝트의 Docker 및 Docker Compose 구성을 정리한다.  
-범위는 서비스 구성, 컨테이너 역할, 네트워크, 볼륨, 환경변수, CI/CD 이미지 배포 구성이다.
+Docker Compose 실행 구조와 이미지 빌드 기준을 정리한다.  
+서비스 구성, 네트워크, 볼륨, 환경변수, GHCR 이미지 배포 흐름을 포함한다.
 
 ## 2. 구성 대상
 
@@ -299,7 +299,7 @@ docker compose up -d --build
 
 ## 17. GitHub Actions 기반 이미지 배포
 
-GitHub Actions 기준 Docker 이미지 배포 구성을 정리한다.
+GitHub Actions 기준 Docker 이미지 배포 흐름이다.
 
 ### 17-1. 워크플로 구성
 

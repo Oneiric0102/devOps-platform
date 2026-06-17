@@ -1,13 +1,17 @@
 import type { NextFunction, Request, Response } from 'express';
 import * as todosService from '../services/todos.service';
 
+export const todosControllerDependencies = {
+  service: todosService,
+};
+
 export async function getTodos(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const result = await todosService.getTodos();
+    const result = await todosControllerDependencies.service.getTodos();
     res.json(result);
   } catch (error) {
     next(error);
@@ -27,7 +31,7 @@ export async function getTodoById(
       return;
     }
 
-    const todo = await todosService.getTodoById(id);
+    const todo = await todosControllerDependencies.service.getTodoById(id);
 
     if (!todo) {
       res.status(404).json({ message: 'Todo not found' });
@@ -56,7 +60,7 @@ export async function createTodo(
       return;
     }
 
-    const todo = await todosService.createTodo({
+    const todo = await todosControllerDependencies.service.createTodo({
       title,
       description,
     });
@@ -86,7 +90,7 @@ export async function updateTodo(
       completed?: boolean;
     };
 
-    const todo = await todosService.updateTodo(id, {
+    const todo = await todosControllerDependencies.service.updateTodo(id, {
       title,
       description,
       completed,
@@ -116,7 +120,7 @@ export async function deleteTodo(
       return;
     }
 
-    const deleted = await todosService.deleteTodo(id);
+    const deleted = await todosControllerDependencies.service.deleteTodo(id);
 
     if (!deleted) {
       res.status(404).json({ message: 'Todo not found' });

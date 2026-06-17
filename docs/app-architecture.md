@@ -24,7 +24,7 @@ Node.js + Express + TypeScript Backend
 | Database | PostgreSQL |
 | Cache | Redis |
 | Metrics | prom-client |
-| Test | Jest, Supertest |
+| Test | Node.js test runner, Supertest |
 | Container | Docker, Docker Compose |
 | Kubernetes | kind, ingress-nginx |
 

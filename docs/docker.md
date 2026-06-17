@@ -332,6 +332,7 @@ GitHub Actions 기준 Docker 이미지 배포 흐름이다.
 ```text
 - Backend 빌드
 - Backend 테스트
+- Frontend lint
 - Frontend 빌드
 - Backend Docker 이미지 빌드
 - Frontend Docker 이미지 빌드

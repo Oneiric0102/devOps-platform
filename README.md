@@ -31,7 +31,7 @@ Todo 애플리케이션을 기준으로 DevOps 운영 흐름을 구성한 포트
 | Database | PostgreSQL |
 | Cache | Redis |
 | Metrics | prom-client, Prometheus, Grafana |
-| Test | Jest, Supertest |
+| Test | Node.js test runner, Supertest |
 | Container | Docker, Docker Compose |
 | CI/CD | GitHub Actions, GitHub Container Registry |
 | Security | npm audit, Trivy |

@@ -45,6 +45,7 @@ CI workflow는 애플리케이션 빌드, 테스트, 컨테이너 빌드, Compos
 - Backend TypeScript build
 - Backend test
 - Frontend dependency install
+- Frontend lint
 - Frontend production build
 - Backend Docker image build
 - Frontend Docker image build
